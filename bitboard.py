@@ -20,8 +20,10 @@ class Board:
         self.turn = np.bool(0) #True = White, False = Black
     
     @functools.lru_cache(None)
-    def get_legal_moves(self, bitboard=None, turn=None):
+    #returns bitboard representation of all valid moves, default bitboard is self.history[-1] and default turn is self.turn
+    def get_legal_moves(self, bitboard=None, turn=None): 
         if bitboard == None: bitboard = self.history[-1]
+        if turn == None: turn = self.turn
         move_list = np.uint64(0)
         empty_positions = (~(bitboard[0] | bitboard[1])) & np.uint64(0xFFFFFFFFFFFFFFFF)
         opp = bitboard[int(not turn)]
@@ -46,7 +48,8 @@ class Board:
             move_list |= (empty_positions & b & (t >> s))
         return move_list
 
-    def play_move(self, move, bitboard=None, turn=None, change_turn=True, update_history=True):
+    #returns the new board after the given move is played, self.turn and self.history are automatically updated unless specificed elsewhere, default bitboard is self.history[-1] and default turn is self.turn
+    def play_move(self, move, bitboard=None, turn=None, change_turn=True, update_history=True): 
         if bitboard == None or turn == None: 
             bitboard, turn = self.history[-1], self.turn
             if change_turn: self.turn = not self.turn
@@ -80,20 +83,27 @@ class Board:
         new_state[turn] = own ^ captured_disks
         new_state[not turn] = opp ^ captured_disks
         new_state = np.array(new_state, dtype=np.uint64)
-        self.history = np.concatenate((self.history, np.atleast_2d(new_state)))
+        if update_history: self.history = np.concatenate((self.history, np.atleast_2d(new_state)))
         return new_state
 
-    def convert_to_movelist(self, moves):
+    #given bitboard of valid moves returns respective list of indices (ie convert_to_movelist(get_legal_moves()))
+    def convert_to_movelist(self, moves): 
         return np.array([i for i in range(64) if np.uint64(1 << i) & moves > 0])
 
     def convert_single_to_matrix(self, bitboard):
         x = lambda a : np.array([np.uint64(1 << i) & a > 0 for i in range(64)]).astype(np.int8)
         return np.reshape(x(bitboard), (8, 8))
 
-    def convert_to_matrix(self, bitboard=None, turn=None): #converts bitboard to matrix from the perspective of the turn given
+    #returns matrix representation of the board from the perspective of the current player (1 - self, 0 - empty, -1, enemy), default bitboard is self.history[-1] and default turn is self.turn
+    def convert_to_matrix(self, bitboard=None, turn=None): 
         if bitboard == None: bitboard = self.history[-1]
+        if turn == None: turn = self.turn
         x = lambda a : np.array([np.uint64(1 << i) & a > 0 for i in range(64)]).astype(np.int8)
         return np.reshape(np.zeros(64, dtype=np.int8) + x(bitboard[int(turn)]) - x(bitboard[int(not turn)]), (8, 8))
+    
+    def __str__(self):
+        return self.convert_to_matrix()
+        
 
 def main():
     b = Board()
@@ -104,5 +114,5 @@ def main():
     print(b.convert_to_matrix(None, True))
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  
     main()
